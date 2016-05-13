@@ -1,0 +1,64 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools" android:id="@+id/container"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    tools:context=".MainActivity" tools:ignore="MergeRootFrame"
+    android:background="@drawable/grad_pink">
+
+    <ImageButton
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:text="Light"
+        android:id="@+id/lightButton"
+        android:layout_centerHorizontal="true"
+        android:layout_gravity="center"
+        android:background="#00ffffff"
+        style="@style/AppTheme"
+        android:ellipsize="marquee"
+        android:enabled="true"
+        android:textColor="#ff3d3d3d"
+        android:textSize="11pt"
+        android:src="@drawable/button_light"
+        android:scaleType="fitXY"
+        android:layout_marginBottom="30dp" />
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="145dp"
+        android:layout_gravity="center_horizontal|bottom"
+        android:background="#7d000000">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.AppCompat.Large"
+            android:text="@string/network_name"
+            android:id="@+id/networkText"
+            android:layout_gravity="left|bottom|center_horizontal"
+            android:textColor="#fff35f93"
+            android:layout_marginBottom="42dp"
+            android:textSize="23dp"
+            android:layout_marginLeft="95dp" />
+
+        <ImageButton
+            android:layout_width="70dp"
+            android:layout_height="70dp"
+            android:id="@+id/rebootButton"
+            android:layout_gravity="left|bottom"
+            android:layout_marginLeft="20dp"
+            android:layout_marginBottom="20dp"
+            android:src="@drawable/button_reboot"
+            android:scaleType="fitXY"
+            android:background="#00ffffff"
+            android:padding="13dp" />
+    </FrameLayout>
+
+    <Button
+        android:layout_width="180dp"
+        android:layout_height="50dp"
+        android:text="MORE OPTIONS"
+        android:id="@+id/settingsButton"
+        android:layout_gravity="center_horizontal|bottom"
+        android:background="@drawable/button_options"
+        android:layout_marginBottom="120dp" />
+
+</FrameLayout>

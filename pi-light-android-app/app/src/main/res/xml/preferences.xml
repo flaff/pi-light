@@ -1,0 +1,28 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent">
+    <PreferenceCategory
+        android:title="Settings"
+        android:key="pref_key_storage_settings">
+        <CheckBoxPreference
+            android:key="pref_key_light_on_start"
+            android:title="Start light when app starts"
+            android:defaultValue="false" />
+        <EditTextPreference
+            android:key="pref_key_pi_lightpin"
+            android:title="Light Pin"
+            android:summary="Number of pin light is attached to."
+            android:defaultValue="26"/>
+        <EditTextPreference
+            android:key="pref_key_pi_ip"
+            android:title="Pi Address"
+            android:defaultValue="192.168.3.14"/>
+        <EditTextPreference
+            android:key="pref_key_pi_ip_alt"
+            android:title="Alternative Pi Address"
+            android:summary="Used if above isn't available."
+            android:defaultValue="0.0.0.0"/>
+        <Preference
+            android:key="pref_key_author"
+            android:summary="Created by: Michał Cziomer - Flaff"></Preference>
+    </PreferenceCategory>
+</PreferenceScreen>
