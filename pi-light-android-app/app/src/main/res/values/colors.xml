@@ -35,4 +35,9 @@
     <color name="statusbar_dimmed">#650d2f</color>
     <color name="navbar_default">#590b2d</color>
     <color name="navbar_dimmed">#240e19</color>
+
+    <color name="button_default_top">#FFFFFF</color>
+    <color name="button_default_bottom">#ffddef</color>
+    <color name="button_pressed_top">#efb5cb</color>
+    <color name="button_pressed_bottom">#ef93cb</color>
 </resources>

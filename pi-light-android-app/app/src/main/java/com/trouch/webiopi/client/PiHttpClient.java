@@ -52,7 +52,7 @@ public class PiHttpClient extends PiClient {
 			}
 			return stringBuilder.toString();
 		} catch (Exception e) {
-			//e.printStackTrace();
+			e.printStackTrace();
 			throw e;
 		} finally {
 			if (reader != null) {

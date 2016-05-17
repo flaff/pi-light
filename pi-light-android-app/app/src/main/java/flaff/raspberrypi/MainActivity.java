@@ -4,8 +4,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.drawable.TransitionDrawable;
-import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
@@ -28,9 +28,11 @@ import android.widget.Toast;
 
 import com.trouch.webiopi.client.PiClient;
 import com.trouch.webiopi.client.PiHttpClient;
+import com.trouch.webiopi.client.devices.digital.GPIO;
 import com.trouch.webiopi.client.devices.digital.Macros;
 import com.trouch.webiopi.client.devices.digital.NativeGPIO;
-import com.trouch.webiopi.client.devices.digital.GPIO;
+
+import java.io.Console;
 
 
 public class MainActivity extends ActionBarActivity {
@@ -46,9 +48,9 @@ public class MainActivity extends ActionBarActivity {
     /*
      * webiopi
      */
-    PiClient client;
-    NativeGPIO gpio;
-    Macros macros;
+    PiClient client, clientAlt;
+    NativeGPIO gpio, gpioAlt;
+    Macros macros, macrosAlt;
     boolean paused = false;
 
 
@@ -57,8 +59,13 @@ public class MainActivity extends ActionBarActivity {
      */
     String host;
     String hostAlt;
+
     int lightPin;
+    boolean lightPinState = false;
+
     boolean lightOnStart;
+    boolean passwordRequired = false;
+    String user,password;
 
 
     /*
@@ -72,6 +79,7 @@ public class MainActivity extends ActionBarActivity {
      */
     boolean rebootConfirm = false;
     boolean connected = false;
+    boolean connectedAlt = false;
 
 
     /*
@@ -87,19 +95,30 @@ public class MainActivity extends ActionBarActivity {
     protected void onResume() {
         super.onResume();
         getPrefs();
-        updatePiStatus();
         updateWifiName();
 
         paused = false;
-        System.out.println("MAIN ACTIVITY RESTORED");
+        System.out.println("MAIN ACTIVITY RESUMED");
+
+        if(!connected)
+        {
+            System.out.println("restored, but not connected, pooling");
+            setUI_offline();
+            poolIsOnline();
+        }
+        else
+        {
+            updatePinState();
+
+            if(lightOnStart)
+                lightStartup();
+        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         getPrefs();
-        updatePiStatus();
-        ((TextView)findViewById(R.id.networkText)).setText("paused");
         System.out.println("MAIN ACTIVITY PAUSED");
 
         paused = true;
@@ -125,25 +144,41 @@ public class MainActivity extends ActionBarActivity {
         }
 
 
+        /*
+         * get preferences
+         */
         preferences = PreferenceManager.getDefaultSharedPreferences(this);
+        getPrefs();
+
 
         /*
          * lollipop goodies
          */
         currentapiVersion = android.os.Build.VERSION.SDK_INT;
-
-        if (currentapiVersion >= Build.VERSION_CODES.LOLLIPOP) {
-            getWindow().setStatusBarColor(getResources().getColor(R.color.statusbar_default));
-            getWindow().setNavigationBarColor(getResources().getColor(R.color.navbar_default));
+        if (currentapiVersion >= Build.VERSION_CODES.LOLLIPOP)
+        {
+            getWindow().setNavigationBarColor(getResources().getColor(R.color.navbar_dimmed));
+            getWindow().setStatusBarColor(getResources().getColor(R.color.statusbar_dimmed));
         }
 
-
         /*
-         * pi init
+         * raspberry pi init
          */
         client = new PiHttpClient(host, 80);
+        clientAlt = new PiHttpClient(hostAlt, 80);
+
+        if(passwordRequired)
+        {
+            client.setCredentials(user, password);
+            clientAlt.setCredentials(user, password);
+        }
+
         gpio = new NativeGPIO(client);
+        gpioAlt = new NativeGPIO(clientAlt);
+
         macros = new Macros(client);
+        macrosAlt = new Macros(clientAlt);
+
 
 
 
@@ -168,11 +203,13 @@ public class MainActivity extends ActionBarActivity {
         settingsButton = (Button) findViewById(R.id.settingsButton);
         layout = (FrameLayout) findViewById(R.id.container);
 
-        /*
-         * TODO: check light state and set background
-         */
-        //layout.setBackgroundResource(R.drawable.grad_pink); //on
-        //layout.setBackgroundResource(R.drawable.grad_pink_dim); //off
+
+        updateWifiName();
+
+        updatePinState();
+
+        if(lightOnStart)
+            lightStartup();
 
 
 
@@ -181,12 +218,18 @@ public class MainActivity extends ActionBarActivity {
          */
         lightButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                toggleLight();   }
+                if (!connected) {
+                    Toast.makeText(getApplicationContext(), "Pi is unavailable.", Toast.LENGTH_LONG).show();
+                    return;
+                }
+                toggleLight();
+            }
         });
 
         rebootButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
-                piReboot();   }
+                piReboot();
+            }
         });
 
         settingsButton.setOnClickListener(new View.OnClickListener() {
@@ -195,10 +238,6 @@ public class MainActivity extends ActionBarActivity {
             }
         });
 
-        getPrefs();
-        firstRun();
-        updateWifiName();
-        updatePiStatus();
     }
 
 
@@ -221,38 +260,55 @@ public class MainActivity extends ActionBarActivity {
         info = wifiManager.getConnectionInfo();
 
         name = info.getSSID().replace("\"", "");
+        if(name.contains("<"))
+            name = this.getResources().getString(R.string.network_name);
+
         ((TextView)findViewById(R.id.networkText)).setText(name);
     }
 
-    private void updatePiStatus()
-    {
-        int state = -2;
 
-        /*
-         * TEMP test, state will be passed as an argument
-         */
-        try {
-            state = (int)Float.parseFloat(client.sendRequest("GET", "/GPIO/"+ lightPin +"/value"));
-        } catch (Exception e) {
-            // pi offline
-            state = -1;
-        }
-
-        if(state == -1)  // pi offline
-        {
-            ((ImageButton)findViewById(R.id.rebootButton)).setImageResource(R.drawable.button_reboot_attention);
-            connected = false;
-        }
-        else // pi online
-        {
-            ((ImageButton)findViewById(R.id.rebootButton)).setImageResource(R.drawable.button_reboot);
-            connected = true;
-        }
-    }
 
     private void getPrefs()
     {
-        host = preferences.getString("pref_key_pi_ip", "192.168.3.3");
+        host = preferences.getString("pref_key_pi_ip", "192.168.3.14");
+        hostAlt = preferences.getString("pref_key_pi_ip_alt", "192.168.3.14");
+
+        lightPin = Integer.parseInt(preferences.getString("pref_key_pi_lightpin", "17"));
+        lightOnStart = preferences.getBoolean("pref_key_light_on_start", false);
+
+        passwordRequired = preferences.getBoolean("pref_key_auth", false);
+        if(passwordRequired)
+        {
+            user = preferences.getString("pref_key_user", "");
+            password = preferences.getString("pref_key_password", "");
+        }
+
+    }
+
+    private void updatePinState()
+    {
+        new Thread(new Runnable(){public void run()
+        {
+            final Boolean prevLightPinState = lightPinState;
+
+            try {
+                lightPinState = gpio.digitalRead(lightPin);
+            }catch(Exception e){}
+
+            runOnUiThread(new Runnable() {
+                @Override
+                public void run() {
+                    if (lightPinState == prevLightPinState)
+                        return;
+
+                    if (!lightPinState)
+                        setUI_default();
+                    else
+                        setUI_dimmed();
+                }
+            });
+
+        }});
     }
 
 
@@ -268,7 +324,7 @@ public class MainActivity extends ActionBarActivity {
         }
 
         /*
-         * ui elements
+         * set ui to default (ease)
          */
         layout.setBackgroundResource(R.drawable.bg_off_to_on);
 
@@ -279,107 +335,111 @@ public class MainActivity extends ActionBarActivity {
         background.startTransition(fade_time);
     }
 
+    private void setUI_dimmed()
+    {
+        /*
+         * lollipop statusbar navbar color
+         */
+        if (currentapiVersion >= Build.VERSION_CODES.LOLLIPOP)
+        {
+            getWindow().setNavigationBarColor(getResources().getColor(R.color.navbar_dimmed));
+            getWindow().setStatusBarColor(getResources().getColor(R.color.statusbar_dimmed));
+        }
 
-    Boolean tempState = false;
+        /*
+         * set ui to dimmed (ease)
+         */
+        layout.setBackgroundResource(R.drawable.bg_on_to_off);
+
+        /*
+         * animate
+         */
+        background = (TransitionDrawable) layout.getBackground();
+        background.startTransition(fade_time);
+    }
+
+
+    private void lightStartup()
+    {
+        if(lightPinState)
+            toggleLight();
+    }
+
+
     private void toggleLight()
     {
         /*
-         * fade bg animation
-         */
-
-        // change background transition drawable
-        if(tempState)
-        {
-            layout.setBackgroundResource(R.drawable.bg_off_to_on);
-            if (currentapiVersion >= Build.VERSION_CODES.LOLLIPOP) {
-                getWindow().setNavigationBarColor(getResources().getColor(R.color.navbar_default));
-                getWindow().setStatusBarColor(getResources().getColor(R.color.statusbar_default));
-            }
-        }
-        else
-        {
-            layout.setBackgroundResource(R.drawable.bg_on_to_off);
-            if (currentapiVersion >= Build.VERSION_CODES.LOLLIPOP) {
-                getWindow().setNavigationBarColor(getResources().getColor(R.color.navbar_dimmed));
-                getWindow().setStatusBarColor(getResources().getColor(R.color.statusbar_dimmed));
-            }
-        }
-
-        background = (TransitionDrawable) layout.getBackground();
-
-        // start transition
-        background.startTransition(fade_time);
-        tempState = !tempState;
-
-
-        /*
          * send to pi
          */
-        new Thread(
-                new Runnable() {
-                    public void run() {
-                        int state = -1;
+        new Thread(new Runnable(){public void run()
+        {
+            // change state
+            System.out.println(lightPinState);
+            try{
+                gpio.setFunction(lightPin, GPIO.OUT);
+                lightPinState = gpio.digitalRead(lightPin);
+                lightPinState = gpio.digitalWrite(lightPin, !lightPinState);
+                System.out.println(lightPinState);
+            }catch (Exception e)
+            {
+                runOnUiThread(new Runnable(){@Override public void run() {
 
-                        try {
-                            state = (int)Float.parseFloat(client.sendRequest("GET", "/GPIO/"+ lightPin +"/value"));
-                        } catch (Exception e) {
-                            System.out.println("toggleLight() - can't read state, exiting");
-                            return;
-                        }
+                    lightPinState = true;
+                    setUI_dimmed();
 
-                        gpio.setFunction(lightPin, GPIO.OUT);
+                    setUI_offline();
+                    updateWifiName();
 
-                        if(state == 0 || state == 1)
-                        {
-                            runOnUiThread(
-                                    new Runnable()
-                                    {
-                                        @Override
-                                        public void run()
-                                        {
+                    connected = false;
+                    Toast.makeText(getApplicationContext(),"Pi is unavailable.", Toast.LENGTH_LONG).show();
 
-                                            rebootButton.setImageResource(R.drawable.button_reboot);
-                                        }
-                                    }
-                            );
-                        }
+                    poolIsOnline();
 
-                        System.out.println("writing " + state + " to pin " + lightPin);
-                        if(state == 0)
-                            gpio.digitalWrite(lightPin, true);
-                        else if(state == 1)
-                            gpio.digitalWrite(lightPin, false);
-                        else {
-                            updateImageConnected(false);
+                    return;
+                }});
+            }
 
-
-                        }
-                    }
+            // update ui
+            runOnUiThread(new Runnable(){@Override public void run() {
+                if(!lightPinState)
+                    setUI_default();
+                else
+                    setUI_dimmed();
+            }});
+            }
         }).start();
     }
 
     private void piReboot()
     {
+        /*
+         * pi is offline, cant reboot
+         */
         if(!connected)
         {
             Toast.makeText(getApplicationContext(),"Pi is unavailable.", Toast.LENGTH_LONG).show();
             return;
         }
 
+        /*
+         * tap again to confirm reboot
+         */
         if(!rebootConfirm)
         {
             rebootConfirmTimer();
             rebootConfirm = true;
         }
+        /*
+         * tapped again, rebooting
+         */
         else
         {
             Toast.makeText(getApplicationContext(),"Rebooting", Toast.LENGTH_LONG).show();
             updateImageConnected(false);
 
-
-            //toggleLight();
             reboot();
-            wentOffline();
+            setUI_offline();
+            poolIsOnline();
 
             rebootConfirm = false;
         }
@@ -387,125 +447,86 @@ public class MainActivity extends ActionBarActivity {
 
     private void reboot()
     {
-        new Thread(
-                new Runnable()
-                {
-                    public void run()
-                    {
-                        /*
-                         * start python script on pi called 'reboot'
-                         */
-                        macros.callMacro("reboot");
-                    }
-                }
-        ).start();
+        new Thread(new Runnable(){public void run()
+        {
+            /*
+             * start python script on pi called 'reboot'
+             */
+            macros.callMacro("reboot");
+        }
+        }).start();
     }
 
-    private void wentOffline()
+
+    private void setUI_offline()
     {
-        new Thread()
-        {
-            public void run()
+        rebootButton.setImageResource(R.drawable.button_reboot_attention);
+        connected = false;
+    }
+
+
+    private void setUI_online()
+    {
+        rebootButton.setImageResource(R.drawable.button_reboot);
+        connected = true;
+    }
+
+
+    private void poolIsOnline()
+    {
+        new Thread(new Runnable(){public void run(){
+            int state = -1;
+
+
+            /*
+             * pool while can't read state and app not hidden
+             */
+            while(state == -1 && !paused)
             {
-                runOnUiThread(
-                    new Runnable()
-                    {
-                        @Override
-                        public void run()
-                        {
-                            ((ImageButton)findViewById(R.id.rebootButton)).setImageResource(R.drawable.button_reboot_attention);
-                        }
-                    }
-                );
-
-                int state = -1;
-
-                try { Thread.currentThread().sleep( 3000 );} catch (InterruptedException e) { e.printStackTrace(); }
-
-               while(state == -1)
-                {
-                    if(!paused)
-                    {
-                        try {
-                            state = (int)Float.parseFloat(client.sendRequest("GET", "/GPIO/"+ lightPin +"/value"));
-                        } catch (Exception e) {
-                            System.out.println("state " + state + " exception, paused: "+paused);
-                        }
-                        try { Thread.currentThread().sleep( 1000 );} catch (InterruptedException e) { e.printStackTrace(); }
-                    }
-
+                try {
+                    state = (int)Float.parseFloat(client.sendRequest("GET", "/GPIO/"+ lightPin +"/value"));
+                } catch (Exception e) {
+                    System.out.println("state " + state + " exception, paused: "+paused);
                 }
-
-                System.out.println("here i am");
+                try { Thread.currentThread().sleep( 333 );} catch (InterruptedException e) { e.printStackTrace(); }
             }
-        }.start();
 
-    }
+            if(state != -1)
+            {
+                runOnUiThread(new Runnable(){@Override public void run() {
+                    setUI_online();
+                    updateWifiName();
+                }});
 
-    private void firstRun()
-    {
-        new Thread()
-        {
-            public void run(){
-                int state = -1;
-                while(state == -1)
-                {
-                    if(!paused) {
-                        try {
-                            state = (int) Float.parseFloat(client.sendRequest("GET", "/GPIO/" + lightPin + "/value"));
-                        } catch (Exception e) {
-                            System.out.println("state " + state + " exception");
-                        }
-                    }
+                /*
+                 * light startup
+                 */
+                // change state
+                System.out.println(lightPinState);
 
-                    if(state == -1)
-                    {
-                        runOnUiThread(
-                                new Runnable()
-                                {
-                                    @Override
-                                    public void run()
-                                    {
-                                        ((ImageButton)findViewById(R.id.rebootButton)).setImageResource(R.drawable.button_reboot_attention);
-                                    }
-                                }
-                        );
-                    }
-                    try { Thread.currentThread().sleep( 1000 );} catch (InterruptedException e) { e.printStackTrace(); }
+                try {
+                    lightPinState = gpio.digitalRead(lightPin);
+                } catch(Exception e){}
 
-                }
+                if(lightOnStart && lightPinState)
+                    lightPinState = gpio.digitalWrite(lightPin, !lightPinState);
 
-                runOnUiThread(
-                        new Runnable()
-                        {
-                            @Override
-                            public void run()
-                            {
-                                WifiManager wifiManager;
-                                WifiInfo info;
+                System.out.println(lightPinState);
 
-                                wifiManager = (WifiManager) getSystemService (Context.WIFI_SERVICE);
-                                info = wifiManager.getConnectionInfo ();
-
-                                ((TextView)findViewById(R.id.networkText)).setText(info.getSSID().replace("\"", ""));
-                                ((ImageButton)findViewById(R.id.rebootButton)).setImageResource(R.drawable.button_reboot);
-                                //Toast.makeText(getApplicationContext(),"connected",Toast.LENGTH_LONG).show();
-                            }
-                        }
-                );
-
+                // update ui
+                runOnUiThread(new Runnable(){@Override public void run() {
+                    if(!lightPinState)
+                        setUI_default();
+                    else
+                        setUI_dimmed();
+                }});
 
             }
-        }.start();
 
+
+        }}).start();
     }
 
-    private boolean isNetworkAvailable() {
-        ConnectivityManager connectivityManager
-                = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo activeNetworkInfo = connectivityManager.getActiveNetworkInfo();
-        return activeNetworkInfo != null && activeNetworkInfo.isConnected();
-    }
 
     private void rebootConfirmTimer()
     {
@@ -517,7 +538,6 @@ public class MainActivity extends ActionBarActivity {
                         try {
                             Thread.currentThread().sleep(300);
                             rebootConfirm = false;
-                            // TODO: change reboot to normal
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }

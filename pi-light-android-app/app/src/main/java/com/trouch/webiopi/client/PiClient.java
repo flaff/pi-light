@@ -22,7 +22,12 @@ public abstract class PiClient {
 	protected String auth;
 
 	public static String encodeCredentials(String login, String password) {
-		return Base64.encodeBase64String((login + ":" + password).getBytes());
+		/*
+		 * android encode fix - flaff
+		 */
+		String encoded = new String(Base64.encodeBase64((login + ":" + password).getBytes()));
+		String safe = encoded.replace('+','-').replace('/','_');
+		return encoded;
 	}
 
 	public PiClient(String protocol, String host, int port) {

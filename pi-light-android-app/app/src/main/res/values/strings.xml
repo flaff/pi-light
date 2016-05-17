@@ -3,4 +3,18 @@
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
     <string name="network_name">None</string>
+
+    <string name="options_button">MORE OPTIONS</string>
+
+    <string name="settings_lightstartup">Start light when app starts</string>
+    <string name="settings_lightpin">Light Pin</string>
+    <string name="settings_lightpin_more">Number of pin light is attached to.</string>
+    <string name="settings_piaddress">Raspberry Pi Address</string>
+    <string name="settings_piaddressalt">Alternative Pi Address</string>
+    <string name="settings_piaddressalt_more">Used if above isn\'t available.</string>
+    <string name="settings_auth">Authorization Required</string>
+    <string name="settings_auth_more">Defined in /etc/webiopi/passwd</string>
+    <string name="settings_user">User</string>
+    <string name="settings_password">Password</string>
+    <string name="settings_about">Created by: Michał Cziomer - Flaff</string>
 </resources>

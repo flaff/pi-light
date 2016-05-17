@@ -38,9 +38,13 @@ public class GPIO extends Device {
 		return this.sendRequest("POST", "/" + macro + "/");
 	}
 	
-	public boolean digitalRead(int channel) {
+	public boolean digitalRead(int channel) throws Exception {
 		String res = this.sendRequest("GET", "/" + channel + "/value");
-		if (res.equals("1")) {
+
+		if(res == null)
+			throw new Exception();
+
+		if (res.equals("1\n")) {
 			return true;
 		}
 		return false;
@@ -48,7 +52,7 @@ public class GPIO extends Device {
 
 	public boolean digitalWrite(int channel, boolean value) {
 		String res = this.sendRequest("POST", "/" + channel + "/value/" + (value ? "1" : "0"));
-		if (res.equals("1")) {
+		if (res.equals("1\n")) {
 			return true;
 		}
 		return false;
