@@ -3,16 +3,18 @@ package flaff.raspberrypi;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.graphics.drawable.TransitionDrawable;
-import android.net.NetworkInfo;
-import android.net.wifi.SupplicantState;
 import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.preference.PreferenceManager;
+//import android.support.design.widget.Snackbar;
+import android.support.design.widget.Snackbar;
 import android.support.v7.app.ActionBarActivity;
 import android.support.v4.app.Fragment;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -72,7 +74,9 @@ public class MainActivity extends ActionBarActivity {
      * consts
      */
     final int fade_time = 200;
-
+    String pi_unavailable;
+    String pi_rebooting;
+    String pi_rebootprompt;
 
     /**
      * used to make sure reboot button was pressed twice
@@ -203,6 +207,10 @@ public class MainActivity extends ActionBarActivity {
         settingsButton = (Button) findViewById(R.id.settingsButton);
         layout = (FrameLayout) findViewById(R.id.container);
 
+        pi_unavailable = this.getResources().getString(R.string.pi_unavailable);
+        pi_rebooting = this.getResources().getString(R.string.pi_rebooting);
+        pi_rebootprompt = this.getResources().getString(R.string.pi_rebootprompt);
+
 
         updateWifiName();
 
@@ -219,7 +227,8 @@ public class MainActivity extends ActionBarActivity {
         lightButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 if (!connected) {
-                    Toast.makeText(getApplicationContext(), "Pi is unavailable.", Toast.LENGTH_LONG).show();
+                    //Toast.makeText(getApplicationContext(), pi_unavailable, Toast.LENGTH_LONG).show();
+                    showSnackbar(pi_unavailable);
                     return;
                 }
                 toggleLight();
@@ -282,6 +291,7 @@ public class MainActivity extends ActionBarActivity {
             user = preferences.getString("pref_key_user", "");
             password = preferences.getString("pref_key_password", "");
         }
+
 
     }
 
@@ -391,7 +401,8 @@ public class MainActivity extends ActionBarActivity {
                     updateWifiName();
 
                     connected = false;
-                    Toast.makeText(getApplicationContext(),"Pi is unavailable.", Toast.LENGTH_LONG).show();
+                    //Toast.makeText(getApplicationContext(),pi_unavailable, Toast.LENGTH_LONG).show();
+                    showSnackbar(pi_unavailable);
 
                     poolIsOnline();
 
@@ -417,7 +428,8 @@ public class MainActivity extends ActionBarActivity {
          */
         if(!connected)
         {
-            Toast.makeText(getApplicationContext(),"Pi is unavailable.", Toast.LENGTH_LONG).show();
+            //Toast.makeText(getApplicationContext(),pi_unavailable, Toast.LENGTH_LONG).show();
+            showSnackbar(pi_unavailable);
             return;
         }
 
@@ -426,6 +438,7 @@ public class MainActivity extends ActionBarActivity {
          */
         if(!rebootConfirm)
         {
+            showSnackbar(pi_rebootprompt);
             rebootConfirmTimer();
             rebootConfirm = true;
         }
@@ -434,13 +447,14 @@ public class MainActivity extends ActionBarActivity {
          */
         else
         {
-            Toast.makeText(getApplicationContext(),"Rebooting", Toast.LENGTH_LONG).show();
+            //Toast.makeText(getApplicationContext(),pi_rebooting, Toast.LENGTH_LONG).show();
+            showSnackbar(pi_rebooting);
             updateImageConnected(false);
-
             reboot();
             setUI_offline();
+            setUI_dimmed();
             poolIsOnline();
-
+            connected = false;
             rebootConfirm = false;
         }
     }
@@ -455,6 +469,20 @@ public class MainActivity extends ActionBarActivity {
             macros.callMacro("reboot");
         }
         }).start();
+    }
+
+    private void showSnackbar(String text)
+    {
+        String color = "#00000000";
+        Snackbar snack = Snackbar.make(layout, text, Snackbar.LENGTH_SHORT);
+       View view = snack.getView();
+        FrameLayout.LayoutParams params =(FrameLayout.LayoutParams)view.getLayoutParams();
+       ViewGroup group = (ViewGroup) snack.getView();
+        group.setBackgroundColor(Color.parseColor(color));
+       params.gravity = Gravity.TOP;
+        view.setLayoutParams(params);
+        snack.show();
+        //Toast.makeText(getApplicationContext(), text, Toast.LENGTH_SHORT).show();
     }
 
 
@@ -488,7 +516,7 @@ public class MainActivity extends ActionBarActivity {
                 } catch (Exception e) {
                     System.out.println("state " + state + " exception, paused: "+paused);
                 }
-                try { Thread.currentThread().sleep( 333 );} catch (InterruptedException e) { e.printStackTrace(); }
+                try { Thread.currentThread().sleep( 333 );} catch (InterruptedException e) { }
             }
 
             if(state != -1)

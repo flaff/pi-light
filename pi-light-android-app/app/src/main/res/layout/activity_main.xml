@@ -12,7 +12,7 @@
         android:layout_centerHorizontal="true"
         android:layout_gravity="center"
         android:background="#00ffffff"
-        style="@style/AppTheme"
+        style="@style/MyAppTheme"
         android:ellipsize="marquee"
         android:enabled="true"
         android:textColor="#ff3d3d3d"

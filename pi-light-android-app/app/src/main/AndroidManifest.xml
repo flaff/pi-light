@@ -8,7 +8,7 @@
         android:allowBackup="true"
         android:icon="@drawable/icon"
         android:label="@string/app_name"
-        android:theme="@style/AppTheme" >
+        android:theme="@style/MyAppTheme" >
 
         <activity
             android:name=".MainActivity"
@@ -21,7 +21,7 @@
 
         <activity
             android:name="flaff.raspberrypi.PiPreferenceActivity"
-            android:theme="@style/AppTheme"
+            android:theme="@style/MyAppTheme"
             android:label="Settings">
         </activity>
     </application>

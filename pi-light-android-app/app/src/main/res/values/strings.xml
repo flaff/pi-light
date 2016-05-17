@@ -6,6 +6,11 @@
 
     <string name="options_button">MORE OPTIONS</string>
 
+    <string name="pi_unavailable">Pi is not available</string>
+
+    <string name="pi_rebootprompt">Press again to reboot</string>
+    <string name="pi_rebooting">Rebooting</string>
+
     <string name="settings_lightstartup">Start light when app starts</string>
     <string name="settings_lightpin">Light Pin</string>
     <string name="settings_lightpin_more">Number of pin light is attached to.</string>

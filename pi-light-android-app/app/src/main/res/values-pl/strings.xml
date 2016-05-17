@@ -6,6 +6,7 @@
 
     <string name="options_button">WIĘCEJ OPCJI</string>
 
+    <string name="pi_rebootprompt">Wciśnij ponownie, aby zrestartować</string>
     <string name="settings_lightstartup">Włączaj światło podczas startu aplikacji</string>
     <string name="settings_lightpin">Pin światła</string>
     <string name="settings_lightpin_more">Numer bolca, do którego jest przypięte światło.</string>
@@ -16,5 +17,10 @@
     <string name="settings_auth_more">Zdefiniowane w /etc/webiopi/passwd</string>
     <string name="settings_user">Użytkownik</string>
     <string name="settings_password">Hasło</string>
+
+
+    <string name="pi_unavailable">Pi jest nieosiągalne</string>
+    <string name="pi_rebooting">Restartowanie</string>
+
     <string name="settings_about">Autor: Michał Cziomer - Flaff</string>
 </resources>
